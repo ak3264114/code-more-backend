@@ -120,7 +120,7 @@ exports.login = async (req, res) => {
                 ismatch = await bcrypt.compare(password, user.password)
                 if (ismatch && user.username == username) {
                     const token = jwt.sign({ userID: user._id },
-                        process.env.JWT_SECRET_KEY, { expiresIn: '10d' })
+                        process.env.LOGIN_SECRET_KEY, { expiresIn: '10d' })
                     return res.status(200).json({ "status": "succes", "message": "user login successfully", "token": token })
                 }
                 else {
