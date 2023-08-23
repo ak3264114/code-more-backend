@@ -14,7 +14,7 @@ route.post('/signup', controller.register)
 route.post('/login', controller.login)
 route.post('/forgot-password', controller.forgotPasswordmail)
 route.post('/verifypassword/:id/:token', controller.passwordreset)
-route.get('/verifyemail/:id/:token', controller.confirmemail)
+route.post('/verifyemail/:token', controller.confirmemail)
 
 // api user 
 route.get('/loggeduser', controller.loggeduser)

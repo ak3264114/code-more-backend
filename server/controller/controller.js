@@ -8,84 +8,104 @@ dotenv.config({ path: 'config.env' })
 
 
 exports.register = async (req, res) => {
-    console.log(req.body)
     try {
-        const { username, name, email, password } = req.body;
-        if (!username || !name || !email || !password) {
-            return res.status(400).json({ status: "Failed", message: "field is missing in registration" });
-        }
-        Userdb.findOne({ username: username }, async (err, result) => {
-            if (result) {
-                res.status(406).send({ "message": "username Already taken! Try another one" });
-            } else {
-                Userdb.findOne({ email: email }, async (err, result) => {
-                    if (result) {
-                        res.status(406).send({ "message": "email Already taken! Try another one" });
-                    } else {
-                        const salt = await bcrypt.genSalt(12)
-                        const hashpass = await bcrypt.hash(password, salt)
-                        let data = new Userdb({
-                            username: req.body.username,
-                            name: req.body.name,
-                            email: req.body.email,
-                            password: hashpass
-                        });
-                        await data.save();
-                        // const saved_user = await Userdb.findOne({ email: email })
-                        // const token = jwt.sign({ userID: saved_user._id },
-                        //     process.env.JWT_SECRET_KEY, { expiresIn: '10d' })
-                        const user = await Userdb.findOne({ email: email })
-                        const secret = user._id + process.env.JWT_SECRET_KEY
-                        const token = jwt.sign({ userID: user._id }, secret, { expiresIn: '15m' })
-                        const link = `${process.env.base_url}/api/verifyemail/${user._id}/${token}`
-                        console.log(link)
-                        let transporter = nodemailer.createTransport({
-                            host: process.env.EMAIL_HOST,
-                            port: process.env.EMAIL_PORT,
-                            secure: true,
-                            auth: {
-                                user: process.env.EMAIL_USER,
-                                pass: process.env.EMAIL_PASS,
-                            },
-                        })
-                        let info = await transporter.sendMail({
-                            from: process.env.EMAIL_FROM,
-                            to: user.email,
-                            subject: "Please Verify Your Email",
-                            html: `<a href = ${link}>click here <a/>to verify your email `
-                        })
-                        res.status(200).json({ "status": "success", "message": "Verification Email sent to your mail id", "info": info , "Link" : link })
-                        // res.status(201).json({ "status": "Success", "message": "Registrain Successfully", "token": token });
-                    }
-                });
-            };
+      const { username, name, email, password } = req.body;
+      if (!username || !name || !email || !password) {
+        return res.status(400).json({
+          status: "Failed",
+          message: "field is missing in registration",
+          });
+      }
+      const userNameExist = await Userdb.exists({ username: username });
+      if (userNameExist) return res.status(200).json({
+          status: "succes",
+          message: "username Already taken! Try another one",
         });
+  
+      const emailExist = await Userdb.exists({ email: email });
+      if (emailExist) {
+          return res.status(200).json({
+              status: "succes",
+              message: "Email Already taken! Try another one",
+            });
+      }
+      const salt = await bcrypt.genSalt(12);
+      const hashpass = await bcrypt.hash(password, salt);
+      let data = new Userdb({
+        username: req.body.username,
+        name: req.body.name,
+        email: req.body.email,
+        password: hashpass,
+      });
+      await data.save();
+      const user = await Userdb.findOne({ email: email });
+      const secret = process.env.EMAIL_VERIFY_SECRET_KEY;
+      const token = jwt.sign({ userID: user._id }, secret, { expiresIn: "15m" });
+      const link = `${process.env.base_url}/verifyemail/${token}`;
+      let transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST,
+        port: process.env.EMAIL_PORT,
+        secure: true,
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+      let info = await transporter.sendMail({
+        from: process.env.EMAIL_FROM,
+        to: user.email,
+        subject: "Please Verify Your Email",
+        html: `<a href = ${link}>click here <a/>to verify your email `,
+      });
+      res.status(200).json({
+          status: "success",
+          message: "Verification Email sent to your mail id",
+        });
+      // res.status(201).json({ "status": "Success", "message": "Registrain Successfully", "token": token });
     } catch (error) {
-        res.status(500).json({ message: error.message || "Error Occoured in registiring user" })
-
+      res
+        .status(500)
+        .json({ message: error.message || "Error Occoured in registiring user" });
     }
-}
-
-
-exports.confirmemail = async (req, res) => {
-    const { id, token } = req.params
-    const user = await Userdb.findById(id)
-    const new_secret = user._id + process.env.JWT_SECRET_KEY
+  };
+  
+  exports.confirmemail = async (req, res) => {
+    const { token } = req.params;
+    const secret = process.env.EMAIL_VERIFY_SECRET_KEY;
     try {
-        jwt.verify(token, new_secret)
-        if (user.status === "active") {
-            res.status(200).json({ "status": "success", "message": "Verifyied" })
-        }
-        else {
-            await Userdb.findByIdAndUpdate(id, { "status": "active" }, { useFindAndModify: false })
-            const token = jwt.sign({ userID: id }, process.env.JWT_SECRET_KEY, { expiresIn: '10d' })
-            console.log(token)
-            res.status(200).json({ "status": "success", "message": "Email Verfiyed successfully", "token": token })
-        }
+      const {userID} = jwt.verify(token, secret);
+      if(!userID) return res.send(400).json({status : failed ,message : "invalid token or token expired"})
+      const user = await Userdb.findById(userID);
+      if (user.status === "active") {
+        res.status(200).json({ status: "success", message: "Already Verifyied" });
+      } else {
+        await Userdb.findByIdAndUpdate(
+          user._id,
+          { status: "active" },
+          { useFindAndModify: false }
+        );
+        const token = jwt.sign({ userID: user._id }, process.env.JWT_SECRET_KEY, {
+          expiresIn: "10d",
+        });
+        res
+          .status(200)
+          .json({
+            status: "success",
+            message: "Email Verfiyed successfully",
+            token: token,
+          });
+      }
     } catch (error) {
-        res.status(500).json({ "message": error.message || "error Occoured in verifing email maybe verification link expire" })
+      res
+        .status(500)
+        .json({
+          message:
+            error.message ||
+            "error Occoured in verifing email maybe verification link expire",
+        });
     }
-}
+  };
+  
 
 
 exports.login = async (req, res) => {
@@ -100,7 +120,7 @@ exports.login = async (req, res) => {
                 ismatch = await bcrypt.compare(password, user.password)
                 if (ismatch && user.username == username) {
                     const token = jwt.sign({ userID: user._id },
-                        process.env.JWT_SECRET_KEY, { expiresIn: '10d' })
+                        process.env.LOGIN_SECRET_KEY, { expiresIn: '10d' })
                     return res.status(200).json({ "status": "succes", "message": "user login successfully", "token": token })
                 }
                 else {

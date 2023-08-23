@@ -7,7 +7,7 @@ exports.checkuserauth = async (req,res ,next)=>{
     if(authorization && authorization.startsWith('token')){
         try {
             token = authorization.split(' ')[1]
-            const {userID} = jwt.verify(token, process.env.JWT_SECRET_KEY)
+            const {userID} = jwt.verify(token, process.env.LOGIN_SECRET_KEY)
             req.user = await Userdb.findById(userID).select('-password')
             next()
         } 
