@@ -12,7 +12,7 @@ const fetchGraphQLData = async (req, res) => {
 
     if (!existfriendId)
       return res
-        .status(400)
+        .status(404)
         .json({ Status: " success", message: "No friend Found", data: [] });
     const data = await FriendsId.find({ username: req.user.username });
     let leetcodeFinalData = [];
