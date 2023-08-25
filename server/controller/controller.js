@@ -84,9 +84,7 @@ exports.register = async (req, res) => {
           { status: "active" },
           { useFindAndModify: false }
         );
-        const token = jwt.sign({ userID: user._id }, process.env.JWT_SECRET_KEY, {
-          expiresIn: "10d",
-        });
+        const token = jwt.sign({ userID: user._id }, process.env.LOGIN_SECRET_KEY, {expiresIn: "10d",});
         res
           .status(200)
           .json({
