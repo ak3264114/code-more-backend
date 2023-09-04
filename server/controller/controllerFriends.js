@@ -2,35 +2,48 @@
 const FriendsId = require('../model/friends_id');
 var Userdb = require('../model/user_model');
 
-exports.addfriendsid = (req, res) => {
+exports.addfriendsid = async(req, res) => {
     if (!req.body) {
-        return res.status(400).json({ message: " data Contant be Empty!" });
+        return res.status(400).json({status :"info" , message: " data Can't be Empty!" });
     }
     else if (!req.body.friendsId) {
-        return res.status(400).json({ message: "Username of your friend Contant be Empty!" });
+        return res.status(400).json({ status :"info" , message: "Username of your friend Can't be Empty!" });
     }
-    else if (req.user) {
-        Userdb.findById(req.user._id)
-            .then(userdb => {
-                let friendsId = new FriendsId({
-                    username : req.user.username,
-                    sitename : req.body.sitename,
-                    friend_id : req.body.friendsId
-                })
-                friendsId.save()
-                console.log(req.user)
-                console.log(friendsId);
-                return res.status(200).json({ status: "success" , message : `friends Id ${req.body.friendsId} is added for user ${req.user.username}` })
-            })
-            .catch(err => {
-                res.status(500).json({
-                    message: err.message || "some error occoured this messege you are seening because you have given it as a default message."
-                });
-            });
-    }
-    else {
-        return res.status(404).json({ status: "failed", message: "invalid user" })
+    try{
+        const isExistFriendId = await FriendsId.exists({ sitename: "leetcode" , friend_id : req.body.friendsId , username : req.user.username})
+        .catch(err =>{
+             return res.status(500).json({ message: err.message || "some error Occurred" })
+        })
+        if (isExistFriendId) {
+            return res.status(400).json({ status :"info", message: "This friendId is already added for this user!" });
+        } 
 
+        if (req.user) {
+            Userdb.findById(req.user._id)
+                .then(userdb => {
+                    let friendsId = new FriendsId({
+                        username : req.user.username,
+                        sitename : req.body.sitename,
+                        friend_id : req.body.friendsId
+                    })
+                    friendsId.save()
+                    console.log(friendsId);
+                    return res.status(200).json({ status: "success" , message : `friends Id ${req.body.friendsId} is added for user ${req.user.username}` })
+                })
+                .catch(err => {
+                    res.status(500).json({
+                        status : "error" , message: err.message || "some error Occurred"
+                    });
+                });
+        }
+        else {
+            return res.status(404).json({ status: "failed", message: "invalid user" })
+    
+        }
+
+    }
+    catch(err){
+        return res.status(500).json({ message: err.message || "some error occoured this messege you are seening because you have given it as a default message." })
     }
 
 
