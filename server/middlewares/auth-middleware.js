@@ -12,7 +12,7 @@ exports.checkuserauth = async (req,res ,next)=>{
             next()
         } 
         catch (error) {
-            res.status(500).json({"status":"failed", "message": error.message ||"Unauthorized User" });
+            res.status(500).json({"status":"failed", "message": "Unauthorized User" });
         }
     }
     if(!token){
